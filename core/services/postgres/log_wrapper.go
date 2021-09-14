@@ -1,4 +1,4 @@
-package orm
+package postgres
 
 import (
 	"context"
@@ -13,35 +13,35 @@ import (
 	"go.uber.org/zap"
 )
 
-var _ gormlogger.Interface = &ormLogWrapper{}
+var _ gormlogger.Interface = &logWrapper{}
 
-type ormLogWrapper struct {
+type logWrapper struct {
 	*zap.SugaredLogger
 	logAllQueries bool
 	slowThreshold time.Duration
 }
 
 // Noop
-func (o *ormLogWrapper) LogMode(level gormlogger.LogLevel) gormlogger.Interface {
+func (o *logWrapper) LogMode(level gormlogger.LogLevel) gormlogger.Interface {
 	return o
 }
 
-func (o *ormLogWrapper) Info(ctx context.Context, s string, i ...interface{}) {
+func (o *logWrapper) Info(ctx context.Context, s string, i ...interface{}) {
 	o.SugaredLogger.Infow(fmt.Sprintf(s, i...))
 }
 
-func (o *ormLogWrapper) Warn(ctx context.Context, s string, i ...interface{}) {
+func (o *logWrapper) Warn(ctx context.Context, s string, i ...interface{}) {
 	o.SugaredLogger.Warnw(fmt.Sprintf(s, i...))
 }
 
-func (o *ormLogWrapper) Error(ctx context.Context, s string, i ...interface{}) {
+func (o *logWrapper) Error(ctx context.Context, s string, i ...interface{}) {
 	o.SugaredLogger.Errorw(fmt.Sprintf(s, i...))
 }
 
 // This is called at the end of every gorm v2 query.
 // We always log the sql queries for errors and slow queries (warns).
 // Need to set LOG_SQL=true to enable all queries.
-func (o *ormLogWrapper) Trace(ctx context.Context, begin time.Time, fc func() (string, int64), err error) {
+func (o *logWrapper) Trace(ctx context.Context, begin time.Time, fc func() (string, int64), err error) {
 	elapsed := time.Since(begin)
 	switch {
 	case ctx.Err() != nil:
@@ -79,12 +79,11 @@ func (o *ormLogWrapper) Trace(ctx context.Context, begin time.Time, fc func() (s
 	}
 }
 
-// FIXME: This is a GORM log wrapper, not a ORM log wrapper so it probably belongs in a different package
-func NewOrmLogWrapper(logger *logger.Logger, logAllQueries bool, slowThreshold time.Duration) *ormLogWrapper {
+func NewLogWrapper(logger *logger.Logger, logAllQueries bool, slowThreshold time.Duration) *logWrapper {
 	newLogger := logger.
 		SugaredLogger.
 		Desugar().
 		WithOptions(zap.AddCallerSkip(2)).
 		Sugar()
-	return &ormLogWrapper{newLogger, logAllQueries, slowThreshold}
+	return &logWrapper{newLogger, logAllQueries, slowThreshold}
 }
